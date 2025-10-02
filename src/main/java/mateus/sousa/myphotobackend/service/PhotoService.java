@@ -1,5 +1,7 @@
 package mateus.sousa.myphotobackend.service;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
@@ -51,6 +53,19 @@ public class PhotoService {
                 photoPage.isLast(),
                 photoPage.getTotalElements(),
                 photoPage.getTotalPages());
+    }
+
+    public List<Photo> getPhotosByIDs(List<Long> ids) {
+        return repository.findByIdIn(ids);
+    }
+
+    public Resource downloadBatchPhoto (List<Long> ids) throws Exception {
+        List<Photo> photos = getPhotosByIDs(ids);
+        List<String> photosPath = photos.stream().map(photo -> photo.getFilePath()).toList();
+        
+        String zipFile = storageService.createZipFile(photosPath);
+        
+        return storageService.loadFileResource(zipFile);
     }
 
     public void deletePhoto(Long id) throws Exception {

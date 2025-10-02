@@ -1,13 +1,20 @@
 package mateus.sousa.myphotobackend.service;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -15,7 +22,6 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-
 
 @Service
 public class StoreService {
@@ -43,8 +49,44 @@ public class StoreService {
             Files.write(targetPath, content);
             return filename;
         } catch (Exception e) {
-            throw new Error("Fail to write the file: "+ e);
+            throw new Error("Fail to write the file: " + e);
         }
+    }
+
+    public String createZipFile(List<String> files) throws IOException {
+        String zipFileURI = "photos_" + LocalDateTime.now().toString() + ".zip";
+        Path targetLocation = Paths.get(uploadDir).resolve(zipFileURI);
+
+        FileOutputStream fos = new FileOutputStream(targetLocation.toFile());
+        ZipOutputStream zipOut = new ZipOutputStream(fos);
+
+        for (String file : files) {
+            try {
+                writeZipFile(file, zipOut);
+            } catch (IOException e) {
+                System.out.println("Falha ao comprimir arquivo: " + file);
+            }
+        }
+
+        // fos.close();
+        zipOut.close();
+
+        return zipFileURI;
+    }
+
+    private void writeZipFile(String source, ZipOutputStream zipOut) throws IOException {
+        URI originalPath = Paths.get(uploadDir).resolve(source).toUri();
+        File fileToZip = new File(originalPath);
+        FileInputStream fis = new FileInputStream(fileToZip);
+        ZipEntry zipEntry = new ZipEntry(fileToZip.getName().split("_")[1]);
+        zipOut.putNextEntry(zipEntry);
+
+        byte[] bytes = new byte[1024];
+        int length;
+        while ((length = fis.read(bytes)) >= 0) {
+            zipOut.write(bytes, 0, length);
+        }
+        fis.close();
     }
 
     public Resource loadFileResource(String fileName) throws Exception {
