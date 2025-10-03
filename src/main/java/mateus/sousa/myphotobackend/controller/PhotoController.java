@@ -57,7 +57,7 @@ public class PhotoController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(photo.getContentType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + photo.getFilePath() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + photo.getOriginalFilename() + "\"")
                 .body(resource);
     }
 
