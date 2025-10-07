@@ -74,7 +74,7 @@ public class PhotoHandler extends AbstractWebSocketHandler {
                     String uuid = chunk.getId();
 
                     if (!videoChunks.containsKey(uuid)) {
-                        ArrayList<VideoChunkInfo> newVideoChunk = new ArrayList<VideoChunkInfo>();
+                        ArrayList<VideoChunkInfo> newVideoChunk = new ArrayList<VideoChunkInfo>(chunk.getTotalChunk());
                         videoChunks.put(chunk.getId(), newVideoChunk);
                         logger.info("Receiving a new video");
                     }
