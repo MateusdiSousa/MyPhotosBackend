@@ -1,4 +1,4 @@
-package mateus.sousa.myphotobackend.controller;
+package mateus.sousa.myphotobackend.websocket;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -18,6 +18,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.AllArgsConstructor;
@@ -26,7 +27,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import mateus.sousa.myphotobackend.models.Photo;
 import mateus.sousa.myphotobackend.models.ProgressFileResponse;
-import mateus.sousa.myphotobackend.models.UploadFIleResponse;
+import mateus.sousa.myphotobackend.models.UploadFileResponse;
 import mateus.sousa.myphotobackend.repository.PhotoRepository;
 import mateus.sousa.myphotobackend.service.StoreService;
 
@@ -41,7 +42,7 @@ public class PhotoHandler extends AbstractWebSocketHandler {
 
     private final Map<String, ArrayList<VideoChunkInfo>> videoChunks = new HashMap<String, ArrayList<VideoChunkInfo>>();
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper(new JsonFactory());
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -56,7 +57,6 @@ public class PhotoHandler extends AbstractWebSocketHandler {
 
     protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) throws Exception {
         try {
-            logger.info("Received a new message: "+ session.getLocalAddress());
 
             ByteBuffer payload = message.getPayload();
 
@@ -65,24 +65,31 @@ public class PhotoHandler extends AbstractWebSocketHandler {
             switch (saveType.intValue()) {
                 case 1:
                     FileInfoWebSocket fileInfo = deserializePhoto(payload);
+                    logger.info("Photo \"" + fileInfo.getFileName() + "\" desserialized");
                     this.saveFile(fileInfo, session);
+                    logger.info("Photo " + fileInfo.getFileName() + " saved successfully");
                     break;
                 case 2:
                     VideoChunkInfo chunk = deserializeVideo(payload);
                     String uuid = chunk.getId();
 
                     if (!videoChunks.containsKey(uuid)) {
-                        ArrayList<VideoChunkInfo> newVideo = new ArrayList<VideoChunkInfo>();
-                        videoChunks.put(chunk.getId(), newVideo);
+                        ArrayList<VideoChunkInfo> newVideoChunk = new ArrayList<VideoChunkInfo>();
+                        videoChunks.put(chunk.getId(), newVideoChunk);
+                        logger.info("Receiving a new video");
                     }
 
                     ArrayList<VideoChunkInfo> video = videoChunks.get(uuid);
                     video.add(chunk);
 
+                    logger.info(String.format("Video \"%s\" %s/%s completed", chunk.getFilename(), video.size(),
+                            chunk.getTotalChunk()));
+
                     if (chunk.getTotalChunk().intValue() == video.size()) {
                         VideoContent videoContent = mountVideo(chunk.getId());
                         this.saveVideo(videoContent, session);
                         videoChunks.remove(uuid);
+                        logger.info("Video \"" + videoContent.getFilename() + "\" saved successfully");
                         break;
                     }
 
@@ -90,7 +97,6 @@ public class PhotoHandler extends AbstractWebSocketHandler {
                             chunk.getTotalChunk());
 
                     session.sendMessage(new TextMessage(mapper.writeValueAsString(progressResponse)));
-
                     break;
                 default:
                     break;
@@ -161,33 +167,34 @@ public class PhotoHandler extends AbstractWebSocketHandler {
         return new String(data, StandardCharsets.UTF_8);
     }
 
-    private void saveFile(FileInfoWebSocket fileInfo, WebSocketSession session) throws IOException {
+    private UploadFileResponse saveFile(FileInfoWebSocket fileInfo, WebSocketSession session) throws IOException {
         String filepath = this.storeService.storeFile(fileInfo.getFileName(), fileInfo.getContent());
         Photo photo = new Photo(fileInfo.getFileName(), filepath, fileInfo.getContentType(), fileInfo.getSize());
         repository.save(photo);
-        logger.info("Arquivo salvo com sucesso");
 
-        UploadFIleResponse uploadFIle = new UploadFIleResponse();
+        UploadFileResponse uploadFIle = new UploadFileResponse();
 
         uploadFIle.setPhoto(photo);
         uploadFIle.setMessage(fileInfo.getFileName() + " salvo com sucesso");
 
         session.sendMessage(new TextMessage(mapper.writeValueAsString(uploadFIle)));
+
+        return uploadFIle;
     }
 
-    private void saveVideo(VideoContent videoContent, WebSocketSession session) throws IOException {
+    private UploadFileResponse saveVideo(VideoContent videoContent, WebSocketSession session) throws IOException {
         String filepath = this.storeService.storeFile(videoContent.getFilename(), videoContent.getContent().array());
         Photo photo = new Photo(videoContent.getFilename(), filepath, videoContent.getContentType(),
                 videoContent.getSize());
         repository.save(photo);
 
-        logger.info("Video salvo com sucesso");
-
-        UploadFIleResponse uploadFIleResponse = new UploadFIleResponse();
+        UploadFileResponse uploadFIleResponse = new UploadFileResponse();
         uploadFIleResponse.setPhoto(photo);
         uploadFIleResponse.setMessage(videoContent.getFilename() + " salvo com sucesso");
 
         session.sendMessage(new TextMessage(mapper.writeValueAsString(uploadFIleResponse)));
+
+        return uploadFIleResponse;
     }
 
     private VideoContent mountVideo(String id) {
@@ -216,7 +223,7 @@ public class PhotoHandler extends AbstractWebSocketHandler {
             videoContent.getContent().put(videoChunkInfo.getContent());
         }
 
-        logger.info("VIDEO MONTADO COM SUCESSO!");
+        logger.info("Video monted successfully");
 
         return videoContent;
     }

@@ -11,6 +11,8 @@ import mateus.sousa.myphotobackend.service.PhotoService;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +29,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class PhotoController {
     @Autowired
     private PhotoService photoService;
+
+    private static final Logger logger = LoggerFactory.getLogger(PhotoController.class);
+
 
     @PostMapping("/upload")
     public ResponseEntity<String> savePhoto(@RequestParam("file") MultipartFile file) {

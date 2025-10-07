@@ -7,7 +7,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 @Setter
-public class UploadFIleResponse {
+public class UploadFileResponse {
     private Photo photo;
     private String message;
 }

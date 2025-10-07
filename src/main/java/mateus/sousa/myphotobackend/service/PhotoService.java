@@ -59,12 +59,12 @@ public class PhotoService {
         return repository.findByIdIn(ids);
     }
 
-    public Resource downloadBatchPhoto (List<Long> ids) throws Exception {
+    public Resource downloadBatchPhoto(List<Long> ids) throws Exception {
         List<Photo> photos = getPhotosByIDs(ids);
         List<String> photosPath = photos.stream().map(photo -> photo.getFilePath()).toList();
-        
+
         String zipFile = storageService.createZipFile(photosPath);
-        
+
         return storageService.loadFileResource(zipFile);
     }
 
