@@ -9,6 +9,8 @@ import mateus.sousa.myphotobackend.models.PagePhotoResponse;
 import mateus.sousa.myphotobackend.models.Photo;
 import mateus.sousa.myphotobackend.service.PhotoService;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -33,10 +35,10 @@ public class PhotoController {
     }
 
     @GetMapping("/view")
-    public ResponseEntity<PagePhotoResponse> getPhotos(@RequestParam("page_size") int pageSize, @RequestParam("page_number") int pageNumber ) {
+    public ResponseEntity<PagePhotoResponse> getPhotos(@RequestParam("page_size") int pageSize,
+            @RequestParam("page_number") int pageNumber) {
         return ResponseEntity.ok(photoService.getPhotos(pageNumber, pageSize));
     }
-    
 
     @GetMapping("/view/{id}")
     public ResponseEntity<Resource> viewPhoto(@PathVariable Long id) throws Exception {
@@ -55,7 +57,19 @@ public class PhotoController {
 
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(photo.getContentType()))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + photo.getFilePath() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + photo.getOriginalFilename() + "\"")
+                .body(resource);
+    }
+
+    @GetMapping("/batch")
+    public ResponseEntity<Resource> downloadPhotoBatch(@RequestParam List<String> ids) throws Exception {
+        List<Long> params = ids.stream().map(id -> Long.parseLong(id)).toList();
+        
+        Resource resource = photoService.downloadBatchPhoto(params);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"compressedPhotos.zip\"")
                 .body(resource);
     }
 
